@@ -1,0 +1,30 @@
+# yml 파일 포맷 version
+version: "3"
+
+services:
+  # Django container
+  django:
+    # 컨테이너 명
+    container_name: django
+    # docker build 옵션
+    build:
+      # docker build 명령어를 실행할 디렉토리 경로
+      context: .
+
+      # 지정할 Dockerfile 경로
+      dockerfile: ./Dockerfile
+
+    # 현재 디렉토리 내에 있는 django 디렉토리를 컨테이너 내에 /home/에 마운트
+    volumes:
+      - ./:/home/
+
+    # 작업 폴더 지정
+    working_dir : /home/
+
+    # 실행할 명령어
+    command: >
+      sh -c "python3 manage.py runserver 0.0.0.0:8042"
+
+    # 호스트 OS와 컨테이너의 포트를 바인딩
+    ports:
+    - "8042:8042"
