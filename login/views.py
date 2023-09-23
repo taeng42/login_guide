@@ -46,7 +46,51 @@ def simple_auth(_uid: str, _secret: str, _code: str, _redirect_uri: str):
     """
     _session.headers.update({"Authorization": f"Bearer {_token}"})
     #############################################################
-    return _session
+    return _session, _response_dict
+
+
+def simple_refresh(
+    _uid: str, _secret: str, _redirect_uri: str, _refresh_token: str, _session=None
+):
+    """
+    간략하게 만들어 본 인증 과정입니다.
+    """
+    import json
+
+    import urllib3
+
+    """
+    urllib3 -> http request를 활용하기위한 라이브러리입니다.
+    """
+
+    #############################################################
+    """
+    base_url & auth_data
+        : https://api.intra.42.fr/apidoc/guides/web_application_flow
+    """
+    base_url = "https://api.intra.42.fr/oauth/token"
+    # refresh는 딱 이것들만 필요합니다.
+    auth_data = {
+        "grant_type": "refresh_token",
+        "refresh_token": _refresh_token,
+        "client_id": _uid,
+        "client_secret": _secret,
+    }
+    #############################################################
+
+    if _session is None:
+        _session = urllib3.PoolManager()
+    response = _session.request(method="POST", url=base_url, fields=auth_data)
+    _response_dict = json.loads(response.data.decode("utf-8"))
+    _token = _response_dict["access_token"]
+
+    #############################################################
+    """
+    headers update!
+    """
+    _session.headers.update({"Authorization": f"Bearer {_token}"})
+    #############################################################
+    return _session, _response_dict
 
 
 # this is http://127.0.0.1:8042/login/login
@@ -76,6 +120,8 @@ def simple_get(_session, _url):
 
 # this is http://127.0.0.1:8042/login/receive
 def receive(request):
+    import time
+
     with open("app_info.yaml", "r", encoding="utf-8") as _f:
         import yaml
 
@@ -97,7 +143,20 @@ def receive(request):
     : code는 redirect uri를 타고 오면 자동으로 랜덤 생성됩니다.
     """
 
-    _session = simple_auth(_uid, _secret, _code, _redirect_uri)
+    _session, _resp_dict = simple_auth(_uid, _secret, _code, _redirect_uri)
+    print("##########################", flush=True)
+    print("첫번째 생성 정보:", flush=True)
+    print(_resp_dict, flush=True)
+
+    time.sleep(3)  # 적절히 3초정도 기다렸다가 리프레시를 시도해봅시다. 그냥 딜레이를 주려는 의도
+
+    _session, _resp_dict = simple_refresh(
+        _uid, _secret, _redirect_uri, _resp_dict["refresh_token"], _session
+    )
+    print("##########################", flush=True)
+    print("Refresh 정보:", flush=True)
+    print(_resp_dict, flush=True)
+    print("##########################", flush=True)
     ## 이제 인증 과정은 종료되었습니다.
 
     ## 이번에는 본인의 정보를 받아와봅시다.
